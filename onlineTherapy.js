@@ -3,6 +3,7 @@ import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import autenticationRoute from './routes/authenticationRoutes.js';
+import { db } from './config/dbConfig.js';
 
 dotenv.config();
 const app = express();
@@ -23,6 +24,144 @@ app.use(function (req, res, next) {
     }
     next();
 });
+
+app.post('/online_therapy/store-student', (req, res) => {
+    const { student_id, student_email } = req.body;
+
+    // Check if the student_id already exists
+    const checkSql = 'SELECT * FROM student_questionnaire WHERE student_id = ?';
+    db.query(checkSql, [student_id], (err, results) => {
+        if (err) {
+            console.error('Error checking for existing student ID:', err);
+            res.status(500).json({ status: 500, message: 'Error checking for existing student ID' });
+            return;
+        }
+
+        if (results.length > 0) {
+            // Student ID exists, perform an update
+            const updateSql = `
+              UPDATE student_questionnaire
+              SET student_email = ?
+              WHERE student_id = ?
+            `;
+            db.query(updateSql, [student_email, student_id], (err, result) => {
+                if (err) {
+                    console.error('Error updating student data:', err);
+                    res.status(500).json({ status: 500, message: 'Failed to update student data' });
+                    return;
+                }
+                console.log('Updated student data:', result);
+                res.status(200).json({ status: 200, message: 'Student data updated successfully' });
+            });
+        } else {
+            // Student ID does not exist, perform an insert
+            const insertSql = `
+              INSERT INTO student_questionnaire (student_id, student_email)
+              VALUES (?, ?)
+            `;
+            db.query(insertSql, [student_id, student_email], (err, result) => {
+                if (err) {
+                    console.error('Error inserting into student_questionnaire table:', err);
+                    res.status(500).json({ status: 500, message: 'Failed to insert student data' });
+                    return;
+                }
+                console.log('Inserted student data:', result);
+                res.status(200).json({ status: 200, message: 'Student data stored successfully' });
+            });
+        }
+    });
+});
+
+
+
+// API 2: Update Part A Questionnaire
+app.post('/online_therapy/update-part-a', (req, res) => {
+    const { student_id, paq1, paq2, paq3, paq4, paq5, paq6, paq7, paq8, paq9, paq10, paq11, paq12, paq13, paq14, paq15 } = req.body;
+
+    const sql = `
+      UPDATE student_questionnaire
+      SET paq1 = ?, paq2 = ?, paq3 = ?, paq4 = ?, paq5 = ?, paq6 = ?, paq7 = ?, paq8 = ?, paq9 = ?, paq10 = ?, paq11 = ?, paq12 = ?, paq13 = ?, paq14 = ?, paq15 = ?
+      WHERE student_id = ?
+    `;
+    const values = [paq1, paq2, paq3, paq4, paq5, paq6, paq7, paq8, paq9, paq10, paq11, paq12, paq13, paq14, paq15, student_id];
+
+    db.query(sql, values, (err, result) => {
+      if (err) {
+        console.error('Error updating part A questionnaire:', err);
+        res.status(500).json({ status: 500, message: 'Failed to update part A questionnaire' });
+        return;
+      }
+      console.log('Updated part A questionnaire:', result);
+      res.status(200).json({ status: 200, message: 'Part A questionnaire updated successfully' });
+    });
+});
+
+// API 3: Update Part B Questionnaire
+app.post('/online_therapy/update-part-b', (req, res) => {
+    const { student_id, pbq1, pbq2, pbq3, pbq4, pbq5, pbq6, pbq7, pbq8, pbq9, pbq10, pbq11, pbq12 } = req.body;
+
+    const sql = `
+      UPDATE student_questionnaire
+      SET pbq1 = ?, pbq2 = ?, pbq3 = ?, pbq4 = ?, pbq5 = ?, pbq6 = ?, pbq7 = ?, pbq8 = ?, pbq9 = ?, pbq10 = ?, pbq11 = ?, pbq12 = ?
+      WHERE student_id = ?
+    `;
+    const values = [pbq1, pbq2, pbq3, pbq4, pbq5, pbq6, pbq7, pbq8, pbq9, pbq10, pbq11, pbq12, student_id];
+
+    db.query(sql, values, (err, result) => {
+      if (err) {
+        console.error('Error updating part B questionnaire:', err);
+        res.status(500).json({ status: 500, message: 'Failed to update part B questionnaire' });
+        return;
+      }
+      console.log('Updated part B questionnaire:', result);
+      res.status(200).json({ status: 200, message: 'Part B questionnaire updated successfully' });
+    });
+});
+
+
+// API to get all student IDs and emails
+app.get('/online_therapy/get-students', (req, res) => {
+    const sql = 'SELECT student_id, student_email FROM student_questionnaire';
+
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error('Error retrieving students:', err);
+            res.status(500).json({ status: 500, message: 'Failed to retrieve students' });
+            return;
+        }
+        res.status(200).json(results);
+    });
+});
+
+// API endpoint to get student responses
+app.get('/online_therapy/get-responses/:studentId', (req, res) => {
+    const studentId = req.params.studentId;
+  
+    const sql = `
+      SELECT 
+        sq.*, 
+        u.school_name,
+        u.user_id,
+        sq.student_email AS user_email
+      FROM student_questionnaire sq
+      JOIN user u ON sq.user_id = u.user_id
+      WHERE sq.student_id = ?
+    `;
+  
+    db.query(sql, [studentId], (err, results) => {
+      if (err) {
+        console.error('Error fetching responses:', err);
+        res.status(500).json({ status: 500, message: 'Failed to fetch responses' });
+        return;
+      }
+  
+      if (results.length > 0) {
+        res.json(results[0]);
+      } else {
+        res.status(404).json({ status: 404, message: 'No responses found for this student' });
+      }
+    });
+  });
 
 app.use('/online_therapy/autenticate', autenticationRoute);
 const PORT = process.env.PORT || 3001;

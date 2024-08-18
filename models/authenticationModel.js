@@ -25,6 +25,9 @@ export const createUserMdl = function (userData, callback) {
     password,
     address,
     mobileNo,
+    schoolName,    
+    contactPerson, 
+    description    
   } = userData;
 
   const checkEmailQuery = `SELECT COUNT(*) AS emailCount FROM user WHERE email = ?`;
@@ -65,8 +68,17 @@ export const createUserMdl = function (userData, callback) {
               return usernameExistsError;
             }
           } else {
-            const insertUserQuery = `INSERT INTO user (user_name, first_name, last_name, email, password, mobile_no, address) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-            const values = [userName, firstName, lastName, email, password, mobileNo, address];
+            const insertUserQuery = `
+              INSERT INTO user (
+                user_name, first_name, last_name, email, password, 
+                mobile_no, address, school_name, contact_person, description
+              ) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+            const values = [
+              userName, firstName, lastName, email, password, 
+              mobileNo, address, schoolName, contactPerson, description
+            ];
 
             execQuery(db, insertUserQuery, values, function (err, results) {
               if (callback && typeof callback === "function") {
