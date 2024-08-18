@@ -86,13 +86,13 @@ app.post('/online_therapy/update-part-a', (req, res) => {
     const values = [paq1, paq2, paq3, paq4, paq5, paq6, paq7, paq8, paq9, paq10, paq11, paq12, paq13, paq14, paq15, student_id];
 
     db.query(sql, values, (err, result) => {
-      if (err) {
-        console.error('Error updating part A questionnaire:', err);
-        res.status(500).json({ status: 500, message: 'Failed to update part A questionnaire' });
-        return;
-      }
-      console.log('Updated part A questionnaire:', result);
-      res.status(200).json({ status: 200, message: 'Part A questionnaire updated successfully' });
+        if (err) {
+            console.error('Error updating part A questionnaire:', err);
+            res.status(500).json({ status: 500, message: 'Failed to update part A questionnaire' });
+            return;
+        }
+        console.log('Updated part A questionnaire:', result);
+        res.status(200).json({ status: 200, message: 'Part A questionnaire updated successfully' });
     });
 });
 
@@ -108,13 +108,13 @@ app.post('/online_therapy/update-part-b', (req, res) => {
     const values = [pbq1, pbq2, pbq3, pbq4, pbq5, pbq6, pbq7, pbq8, pbq9, pbq10, pbq11, pbq12, student_id];
 
     db.query(sql, values, (err, result) => {
-      if (err) {
-        console.error('Error updating part B questionnaire:', err);
-        res.status(500).json({ status: 500, message: 'Failed to update part B questionnaire' });
-        return;
-      }
-      console.log('Updated part B questionnaire:', result);
-      res.status(200).json({ status: 200, message: 'Part B questionnaire updated successfully' });
+        if (err) {
+            console.error('Error updating part B questionnaire:', err);
+            res.status(500).json({ status: 500, message: 'Failed to update part B questionnaire' });
+            return;
+        }
+        console.log('Updated part B questionnaire:', result);
+        res.status(200).json({ status: 200, message: 'Part B questionnaire updated successfully' });
     });
 });
 
@@ -136,7 +136,7 @@ app.get('/online_therapy/get-students', (req, res) => {
 // API endpoint to get student responses
 app.get('/online_therapy/get-responses/:studentId', (req, res) => {
     const studentId = req.params.studentId;
-  
+
     const sql = `
       SELECT 
         sq.*, 
@@ -147,21 +147,104 @@ app.get('/online_therapy/get-responses/:studentId', (req, res) => {
       JOIN user u ON sq.user_id = u.user_id
       WHERE sq.student_id = ?
     `;
-  
+
     db.query(sql, [studentId], (err, results) => {
-      if (err) {
-        console.error('Error fetching responses:', err);
-        res.status(500).json({ status: 500, message: 'Failed to fetch responses' });
-        return;
-      }
-  
-      if (results.length > 0) {
-        res.json(results[0]);
-      } else {
-        res.status(404).json({ status: 404, message: 'No responses found for this student' });
-      }
+        if (err) {
+            console.error('Error fetching responses:', err);
+            res.status(500).json({ status: 500, message: 'Failed to fetch responses' });
+            return;
+        }
+
+        if (results.length > 0) {
+            res.json(results[0]);
+        } else {
+            res.status(404).json({ status: 404, message: 'No responses found for this student' });
+        }
     });
-  });
+});
+
+app.get('/notifications/user/:userId', (req, res) => {
+    const { userId } = req.params;
+
+    // SQL query to get notifications by user ID
+    const sql = 'SELECT * FROM notifications WHERE user_id = ?';
+
+    // Execute the query
+    db.query(sql, [userId], (err, results) => {
+        if (err) {
+            console.error('Error fetching notifications:', err);
+            res.status(500).json({ error: 'Failed to fetch notifications' });
+            return;
+        }
+        // Send the results as JSON
+        res.json(results);
+    });
+});
+
+app.post('/notifications', (req, res) => {
+    const { user_id, student_id, schedule_date, schedule_time, meeting_url } = req.body;
+
+    if (!user_id || !student_id || !schedule_date || !schedule_time || !meeting_url) {
+        return res.status(400).json({ message: 'Missing required fields' });
+    }
+    const checkSql = `
+      SELECT * FROM notifications
+      WHERE user_id = ? AND student_id = ?
+    `;
+    
+    db.query(checkSql, [user_id, student_id], (err, results) => {
+        if (err) {
+            console.error('Error checking for existing notification:', err);
+            return res.status(500).json({ message: 'Failed to check for existing notification' });
+        }
+
+        if (results.length > 0) {
+            // Record exists, perform an update
+            const updateSql = `
+              UPDATE notifications
+              SET schedule_date = ?, schedule_time = ?, meeting_url = ?
+              WHERE user_id = ? AND student_id = ?
+            `;
+
+            db.query(updateSql, [schedule_date, schedule_time, meeting_url, user_id, student_id], (err, result) => {
+                if (err) {
+                    console.error('Error updating notification:', err);
+                    return res.status(500).json({ message: 'Failed to update notification' });
+                }
+                res.status(200).json({ message: 'Notification updated successfully' });
+            });
+        } else {
+            // Record does not exist, perform an insert
+            const insertSql = `
+              INSERT INTO notifications (user_id, student_id, schedule_date, schedule_time, meeting_url)
+              VALUES (?, ?, ?, ?, ?)
+            `;
+
+            db.query(insertSql, [user_id, student_id, schedule_date, schedule_time, meeting_url], (err, result) => {
+                if (err) {
+                    console.error('Error inserting notification:', err);
+                    return res.status(500).json({ message: 'Failed to create notification' });
+                }
+                res.status(201).json({ message: 'Notification created successfully', notificationId: result.insertId });
+            });
+        }
+    });
+});
+
+
+app.post('/contact', (req, res) => {
+    const { name, email, message } = req.body;
+    const sql = 'INSERT INTO ContactUs (name, email_id, message) VALUES (?, ?, ?)';
+    db.query(sql, [name, email, message], (err, result) => {
+        if (err) {
+            console.error('Error inserting into ContactUs table:', err);
+            res.status(500).json({ status: 500, message: 'Failed to insert into ContactUs table' });
+            return;
+        }
+        console.log('Inserted into ContactUs table:', result);
+        res.status(200).json({ status: 200, message: 'Contact details inserted successfully' });
+    });
+});
 
 app.use('/online_therapy/autenticate', autenticationRoute);
 const PORT = process.env.PORT || 3001;
