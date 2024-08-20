@@ -26,7 +26,7 @@ app.use(function (req, res, next) {
 });
 
 app.post('/online_therapy/store-student', (req, res) => {
-    const { student_id, student_email } = req.body;
+    const { student_id, student_email, user_id } = req.body;
 
     // Check if the student_id already exists
     const checkSql = 'SELECT * FROM student_questionnaire WHERE student_id = ?';
@@ -41,10 +41,10 @@ app.post('/online_therapy/store-student', (req, res) => {
             // Student ID exists, perform an update
             const updateSql = `
               UPDATE student_questionnaire
-              SET student_email = ?
+              SET student_email = ?, user_id = ?
               WHERE student_id = ?
             `;
-            db.query(updateSql, [student_email, student_id], (err, result) => {
+            db.query(updateSql, [student_email, user_id, student_id], (err, result) => {
                 if (err) {
                     console.error('Error updating student data:', err);
                     res.status(500).json({ status: 500, message: 'Failed to update student data' });
@@ -56,10 +56,10 @@ app.post('/online_therapy/store-student', (req, res) => {
         } else {
             // Student ID does not exist, perform an insert
             const insertSql = `
-              INSERT INTO student_questionnaire (student_id, student_email)
-              VALUES (?, ?)
+              INSERT INTO student_questionnaire (student_id, student_email, user_id)
+              VALUES (?, ?, ?)
             `;
-            db.query(insertSql, [student_id, student_email], (err, result) => {
+            db.query(insertSql, [student_id, student_email, user_id], (err, result) => {
                 if (err) {
                     console.error('Error inserting into student_questionnaire table:', err);
                     res.status(500).json({ status: 500, message: 'Failed to insert student data' });
