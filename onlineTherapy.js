@@ -246,6 +246,77 @@ app.post('/contact', (req, res) => {
     });
 });
 
+
+// Reschedule Meeting API
+app.put('/reschedule', (req, res) => {
+    const { notification_id, new_schedule_time, new_schedule_date } = req.body;
+  
+    // Validate required fields
+    if (!notification_id || !new_schedule_time || !new_schedule_date) {
+      return res.status(400).json({
+        status: 400,
+        message: 'Missing required fields: notification_id, new_schedule_time, and new_schedule_date are required.',
+      });
+    }
+  
+    // Update query to reschedule the meeting
+    const sql = `
+      UPDATE notifications 
+      SET schedule_time = ?, schedule_date = ?, status='Pending' 
+      WHERE notification_id = ?`;
+  
+    db.query(sql, [new_schedule_time, new_schedule_date, notification_id], (err, result) => {
+      if (err) {
+        console.error('Error updating notification:', err);
+        return res.status(500).json({ status: 500, message: 'Failed to reschedule the meeting.' });
+      }
+  
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ status: 404, message: 'Notification not found.' });
+      }
+  
+      console.log('Meeting rescheduled successfully:', result);
+      res.status(200).json({ status: 200, message: 'Meeting rescheduled successfully.' });
+    });
+  });
+
+  // get all notifications
+app.get('/notifications', (req, res) => {
+    const sql = 'SELECT * FROM notifications';
+    db.query(sql, (err, results) => {
+      if (err) {
+        console.error('Error fetching notifications:', err);
+        res.status(500).json({ status: 500, message: 'Failed to fetch notifications' });
+        return;
+      }
+      res.status(200).json(results);
+    });
+  });
+
+  // update the status of a notification
+app.put('/notifications/:id/status', (req, res) => {
+    const notificationId = req.params.id;
+    const { status } = req.body;
+  
+    if (!status) {
+      return res.status(400).json({ status: 400, message: 'Status is required' });
+    }
+  
+    const sql = 'UPDATE notifications SET status = ? WHERE notification_id = ?';
+    db.query(sql, [status, notificationId], (err, result) => {
+      if (err) {
+        console.error('Error updating notification status:', err);
+        return res.status(500).json({ status: 500, message: 'Failed to update notification status' });
+      }
+  
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ status: 404, message: 'Notification not found' });
+      }
+  
+      res.status(200).json({ status: 200, message: 'Notification status updated successfully' });
+    });
+  });
+  
 app.use('/online_therapy/autenticate', autenticationRoute);
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
